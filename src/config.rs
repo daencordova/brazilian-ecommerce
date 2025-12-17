@@ -3,10 +3,18 @@ use std::env;
 use std::time::Duration;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
+#[derive(Clone)]
 pub struct AppConfig {
     pub database_url: String,
     pub port: u16,
     pub cors: CorsConfig,
+}
+
+#[derive(Clone)]
+pub struct CorsConfig {
+    pub allowed_origins: AllowOrigin,
+    pub allow_credentials: bool,
+    pub max_age_seconds: u64,
 }
 
 pub fn load_config() -> Result<AppConfig, AppError> {
@@ -18,19 +26,11 @@ pub fn load_config() -> Result<AppConfig, AppError> {
         .parse()
         .map_err(|e| AppError::ConfigError(format!("Invalid PORT: {}", e)))?;
 
-    let cors = load_cors_config()?;
-
     Ok(AppConfig {
         database_url,
         port,
-        cors,
+        cors: load_cors_config()?,
     })
-}
-
-pub struct CorsConfig {
-    pub allowed_origins: AllowOrigin,
-    pub allow_credentials: bool,
-    pub max_age_seconds: u64,
 }
 
 pub fn load_cors_config() -> Result<CorsConfig, AppError> {
@@ -50,10 +50,12 @@ pub fn load_cors_config() -> Result<CorsConfig, AppError> {
     Ok(CorsConfig {
         allowed_origins,
         allow_credentials: env::var("CORS_ALLOW_CREDENTIALS")
-            .map(|v| v.parse().unwrap_or(true))
+            .unwrap_or_else(|_| "true".to_string())
+            .parse()
             .unwrap_or(true),
         max_age_seconds: env::var("CORS_MAX_AGE")
-            .map(|v| v.parse().unwrap_or(3600))
+            .unwrap_or_else(|_| "3600".to_string())
+            .parse()
             .unwrap_or(3600),
     })
 }
