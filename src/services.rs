@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tracing::instrument;
 use validator::Validate;
 
-use crate::error::{AppError, AppResult};
+use crate::error::{AppError, AppResult, map_db_error};
 use crate::models::{
     AddItemToOrderDto, CreateCustomerDto, CreateOrderDto, CreateProductDto, CreateSellerDto,
     Customer, LocationSearchQuery, Order, OrderItem, OrderProductResponse, OrderSearchQuery,
@@ -27,18 +27,11 @@ impl CustomerService {
     #[instrument(skip(self))]
     pub async fn create_customer(&self, dto: CreateCustomerDto) -> AppResult<Customer> {
         dto.validate()?;
-        self.repository.create(dto).await.map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e {
-                if db_err.code().as_deref() == Some("23505") {
-                    if db_err.constraint() == Some("customers_pkey") {
-                        return AppError::AlreadyExists(
-                            "Customer with this ID already exists".to_string(),
-                        );
-                    }
-                }
-            }
-            AppError::DatabaseError(e)
-        })
+        Ok(self
+            .repository
+            .create(dto)
+            .await
+            .map_err(|e| map_db_error(e, "Customer"))?)
     }
 
     #[instrument(skip(self))]
@@ -111,7 +104,11 @@ impl SellerService {
     #[instrument(skip(self))]
     pub async fn create_seller(&self, dto: CreateSellerDto) -> AppResult<Seller> {
         dto.validate()?;
-        Ok(self.repository.create(dto).await?)
+        Ok(self
+            .repository
+            .create(dto)
+            .await
+            .map_err(|e| map_db_error(e, "Seller"))?)
     }
 
     #[instrument(skip(self))]
@@ -155,7 +152,11 @@ impl OrderService {
     #[instrument(skip(self))]
     pub async fn create_order(&self, dto: CreateOrderDto) -> AppResult<Order> {
         dto.validate()?;
-        Ok(self.repository.create(dto).await?)
+        Ok(self
+            .repository
+            .create(dto)
+            .await
+            .map_err(|e| map_db_error(e, "Order"))?)
     }
 
     #[instrument(skip(self))]
@@ -246,16 +247,11 @@ impl ProductService {
     #[instrument(skip(self))]
     pub async fn create_product(&self, dto: CreateProductDto) -> AppResult<Product> {
         dto.validate()?;
-        self.repository.create(dto).await.map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e {
-                if db_err.code().as_deref() == Some("23505") {
-                    return AppError::AlreadyExists(
-                        "Product with this ID already exists".to_string(),
-                    );
-                }
-            }
-            AppError::DatabaseError(e)
-        })
+        Ok(self
+            .repository
+            .create(dto)
+            .await
+            .map_err(|e| map_db_error(e, "Product"))?)
     }
 
     #[instrument(skip(self))]

@@ -74,3 +74,12 @@ impl IntoResponse for AppError {
         (status, Json(serde_json::json!({"error": msg}))).into_response()
     }
 }
+
+pub fn map_db_error(e: sqlx::Error, resource_name: &str) -> AppError {
+    if let sqlx::Error::Database(db_err) = &e {
+        if db_err.code().as_deref() == Some("23505") {
+            return AppError::AlreadyExists(format!("{} already exists", resource_name));
+        }
+    }
+    AppError::DatabaseError(e)
+}
